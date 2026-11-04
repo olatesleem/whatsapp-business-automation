@@ -1,0 +1,17 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+
+# Local and temporary files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+
+# n8n local data and backups
+.n8n/
+n8n-backup/
