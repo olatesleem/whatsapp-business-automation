@@ -1,35 +1,41 @@
-# Workflow Architecture
+# BookBot Architecture
 
-## Purpose
+## Main message path
 
-This document describes the confirmed high-level design of the WhatsApp Business automated first-response project.
+1. **WhatsApp Trigger** receives an incoming customer message.
+2. **AI Agent** reads the message and applies the BookBot system instructions.
+3. **OpenAI Chat Model** provides the language-model reasoning.
+4. **Simple Memory** supplies a bounded conversational context window.
+5. The agent can call connected Google Sheets tools for inventory, orders, customer data, cart data and sales records.
+6. The **send_email** Gmail tool sends customer emails when requested by the agent.
+7. **WhatsApp Business Cloud** sends the response back to the customer.
 
-## High-level flow
+## Tool names exposed to the AI Agent
 
-```mermaid
-flowchart TD
-    A[Customer sends WhatsApp message] --> B[Incoming message event]
-    B --> C[n8n workflow]
-    C --> D[Prepare welcome response]
-    D --> E[Send response to customer]
-```
-
-## Components
-
-| Component | Responsibility |
+| Tool name | Intended responsibility |
 |---|---|
-| WhatsApp Business channel | Receives the customer's message and provides the messaging interface |
-| Incoming event / trigger | Starts the automation when a customer message is received |
-| n8n | Orchestrates the workflow steps |
-| Welcome response | Introduces the business and invites product, price, availability, and delivery enquiries |
+| `search_inventory` | Search the book catalogue, prices and stock |
+| `update_inventory` | Update a book's stock quantity |
+| `create_order` | Append a new order |
+| `search_orders` | Retrieve an order for tracking or eligibility checks |
+| `order_update` | Update an existing order record |
+| `send_email` | Send order-related customer emails |
+| `cart_search`, `cart_add`, `cart_update` | Cart line operations; worksheet references need configuration |
+| `customer_search`, `customer_create`, `customer_update` | Customer record operations |
+| `sale_record` | Record a sale |
 
-## Implementation details to verify
+The primary tool names above are aligned with the tool names listed in the AI Agent's system instructions.
 
-The original workflow configuration is required to confirm:
-- The WhatsApp integration provider and trigger type
-- The exact n8n nodes and their configuration
-- How the incoming event is authenticated and parsed
-- The outbound messaging endpoint and payload
-- Whether duplicate events, unsupported message types, or failed sends are handled
+## Data domains
 
-These details are intentionally left open rather than guessed.
+| Data domain | Google Sheets nodes | Intended role |
+|---|---|---|
+| Inventory | search_inventory, update_inventory | Book catalogue, price and stock |
+| Orders | create_order, search_orders, order_update | Create, retrieve and update order records |
+| Customers | customer_search, customer_create, customer_update | Customer profile records |
+| Cart | cart_search, cart_add, cart_update, orderItem_create | Cart line management |
+| Sales | sale_record | Sales record creation |
+
+## Operational boundaries
+
+The JSON contains tool connections and AI instructions, but this document describes intended architecture, not proof of successful execution. Spreadsheet IDs, tab references, credentials and WhatsApp settings must be supplied in the target environment. The legacy connected tools `Get all orders`, `Delete Order` and `cancle Order` remain in the export and should be reviewed; `Delete Order` is a destructive operation.
