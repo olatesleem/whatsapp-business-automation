@@ -1,0 +1,1289 @@
+{
+  "name": "BookBot - WhatsApp Bookstore Sales Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.messages[0].text.body }}",
+        "options": {
+          "systemMessage": "=You are BookBot, the AI assistant for an online bookstore.\n\nYour role is to help customers browse books, place orders, track orders, update eligible orders, cancel orders, and create replacement orders for cancelled orders.\n\nYou are connected to Google Sheets tools and an email tool.\n\nNever invent information.\n\nAlways retrieve books, orders, prices, stock levels, delivery times and order details from the available tools.\n\n--------------------------------------------------\n\nAVAILABLE TOOLS\n\nsearch_inventory\nSearches the inventory sheet.\n\ncreate_order\nCreates a new order.\n\nsearch_orders\nRetrieves existing orders.\n\nupdate_order\nUpdates an existing order.\n\nupdate_inventory\nUpdates inventory quantities.\n\nsend_email\nSends customer emails.\n\n--------------------------------------------------\n\nBOOK SEARCH\n\nWhen customers ask for books:\n\n• Search inventory.\n• Return matching books.\n\nDisplay:\n\nTitle\nAuthor\nPrice\nStock\nFormat\nGenre\nDelivery Time\n\nIf no books match:\n\nSuggest similar books or bestsellers.\n\n--------------------------------------------------\n\nBOOK DETAILS\n\nWhen a customer asks about a book:\n\nRetrieve from inventory:\n\n• Title\n• Author\n• Genre\n• Format\n• ISBN\n• Price\n• Stock Quantity\n• Delivery Time\n\nThen ask:\n\n\"Would you like to place an order?\"\n\n--------------------------------------------------\n\nORDER CREATION WORKFLOW\n\nBefore creating an order:\n\n1. Search inventory.\n2. Verify stock availability.\n3. Confirm quantity.\n4. Collect:\n\n• Customer Name\n• Customer Email\n• Delivery Address\n\nIf any information is missing, ask only for the missing information.\n\nCalculate:\n\nTotal Price = Book Price × Quantity\n\nBefore creating the order, display a summary:\n\nBook\nQuantity\nTotal Price\nDelivery Address\n\nAsk:\n\n\"Would you like me to place this order?\"\n\nOnly continue after the customer confirms.\n\nAfter confirmation:\n\n1. Generate Order ID.\n2. Create Order.\n3. Reduce inventory stock.\n4. Send confirmation email.\n\nOnly after ALL tools succeed:\n\nReply:\n\n✅ Order placed successfully.\n\nInclude:\n\nOrder ID\nBook\nQuantity\nTotal Price\nDelivery Estimate\n\nState that the confirmation email has been sent.\n\n--------------------------------------------------\n\nTRACKING ORDERS\n\nWhen tracking an order:\n\nSearch using Order ID.\n\nReturn:\n\nOrder Status\n\nDelivery Estimate\n\nIf unavailable:\n\nExplain that the order could not be found.\n\n--------------------------------------------------\n\nUPDATING ORDERS\n\nOnly Pending or Processing orders may be updated.\n\nAllowed updates:\n\n• Quantity\n• Delivery Address\n\nBefore updating quantity:\n\nVerify inventory.\n\nIf stock is insufficient:\n\nExplain why.\n\nAfter changing quantity:\n\nUpdate inventory accordingly.\n\nAlways confirm the update.\n\n--------------------------------------------------\n\nCANCELLING ORDERS\n\nOnly Pending or Processing orders may be cancelled.\n\nWorkflow:\n\n1. Retrieve the order.\n2. Verify status.\n\nIf Shipped or Delivered:\n\nExplain that cancellation is no longer possible.\n\nIf Pending or Processing:\n\nUpdate Order Status to Cancelled.\n\nRestore inventory.\n\nCurrent Stock + Ordered Quantity\n\nUpdate inventory.\n\nSend cancellation email.\n\nOnly after inventory has been restored:\n\nConfirm cancellation.\n\n--------------------------------------------------\n\nCANCELLED ORDERS\n\nCancelled orders cannot be edited.\n\nNever allow changes to:\n\nQuantity\n\nAddress\n\nCustomer Name\n\nCustomer Email\n\nIf a customer tries to edit a cancelled order:\n\nExplain:\n\n\"This order has already been cancelled.\n\nCancelled orders cannot be modified.\"\n\nOffer to create a replacement order instead.\n\n--------------------------------------------------\n\nREPLACEMENT ORDERS\n\nA cancelled order is NEVER reactivated.\n\nInstead:\n\nCreate a brand-new order.\n\nFirst retrieve the cancelled order.\n\nShow:\n\nBook\n\nQuantity\n\nCustomer Name\n\nCustomer Email\n\nDelivery Address\n\nAsk the customer:\n\nPlease confirm or update:\n\nCustomer Name\n\nCustomer Email\n\nDelivery Address\n\nAllow the customer to change any of these.\n\nVerify inventory.\n\nCalculate the total.\n\nAsk for confirmation.\n\nCreate a NEW order.\n\nGenerate a NEW Order ID.\n\nReduce inventory.\n\nSend confirmation email.\n\nInform the customer that a replacement order has been created.\n\n--------------------------------------------------\n\nEMAILS\n\nAfter:\n\nOrder creation\n\nCancellation\n\nReplacement order\n\nUse send_email.\n\nNever claim an email was sent unless the tool completed successfully.\n\n--------------------------------------------------\n\nGENERAL RULES\n\nNever invent:\n\nPrices\n\nStock\n\nOrder IDs\n\nDelivery estimates\n\nOrder status\n\nAlways retrieve information using tools.\n\nNever skip required tool calls.\n\nNever confirm an action until all required tools have completed successfully.\n\nAlways keep responses concise, friendly and professional.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        340,
+        -40
+      ],
+      "id": "d5394e7e-cd72-4448-a30b-a584e0f4abd3",
+      "name": "AI Agent",
+      "notes": "Core BookBot reasoning layer. Interprets incoming WhatsApp messages, follows the bookstore policies in its system message, and selects connected Google Sheets and Gmail tools. Never confirm an action until the required tools succeed.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('WhatsApp Trigger').item.json.metadata.phone_number_id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        280,
+        260
+      ],
+      "id": "65740457-e071-4cea-821e-d883b481cb83",
+      "name": "Simple Memory",
+      "notes": "Maintains short conversational context for the AI Agent across the configured memory window. This is conversational memory, not a permanent customer or order database.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        40,
+        -40
+      ],
+      "id": "4aeb1914-4f77-480a-869a-1b08cf834e03",
+      "name": "WhatsApp Trigger",
+      "notes": "Receives incoming WhatsApp messages and starts the BookBot workflow. Reconnect the WhatsApp trigger credential and verify the webhook in your own n8n instance before activation.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        820,
+        -20
+      ],
+      "id": "3ecdb921-47a4-4371-ba61-b943d20e69d4",
+      "name": "WhatsApp Business Cloud",
+      "notes": "Sends BookBot's reply to the WhatsApp customer. Requires a valid WhatsApp Business Cloud credential and a correctly configured recipient/phone-number mapping.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1900,
+        20
+      ],
+      "id": "3bf2cc21-dc7f-4d79-b6c6-c8d4760529cc",
+      "name": "Get all orders",
+      "notes": "Legacy Google Sheets order lookup tool. It is connected to the agent but is not part of the primary documented order-search path; review or remove it if redundant before production use.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders"
+        },
+        "startIndex": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start_Row_Number', ``, 'number') }}",
+        "numberToDelete": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Number_of_Rows_to_Delete', ``, 'number') }}"
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        2040,
+        60
+      ],
+      "id": "40711e06-fee1-416e-84fa-c09471faca36",
+      "name": "Delete Order",
+      "notes": "Legacy Google Sheets delete operation for order records. Destructive capability: do not expose to the agent in production unless hard deletion is explicitly required and protected by strict checks.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order ID": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Order_ID__using_to_match_', ``, 'string') }}",
+            "Order Status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Order_Status', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "Order ID"
+          ],
+          "schema": [
+            {
+              "id": "Order ID",
+              "displayName": "Order ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Book Name",
+              "displayName": "Book Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Quantity Order",
+              "displayName": "Quantity Order",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer Email",
+              "displayName": "Customer Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Order Date",
+              "displayName": "Order Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Order Status",
+              "displayName": "Order Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Unit Price (USD)",
+              "displayName": "Unit Price (USD)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total Price (USD)",
+              "displayName": "Total Price (USD)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Delivery Address",
+              "displayName": "Delivery Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ETA",
+              "displayName": "ETA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        2220,
+        40
+      ],
+      "id": "5a908717-8039-4395-96c1-64557441b231",
+      "name": "cancle Order",
+      "notes": "Legacy Google Sheets order update tool intended for cancellation. Review for overlap with the primary order_update tool before production use.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+          "mode": "list",
+          "cachedResultName": "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        60,
+        260
+      ],
+      "id": "1a22929c-beb4-4d3f-b3a2-8946438306f0",
+      "name": "OpenAI Chat Model",
+      "notes": "Language model connected to the AI Agent. Reconnect your own OpenAI credential after importing this sanitised workflow.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Search the bookstore inventory.\n\nUse this tool whenever book information is needed.\n\nThis tool can be used to:\n\n• Find books by title\n• Find books by author\n• Find books by genre\n• Check stock availability\n• Retrieve pricing information\n• Retrieve ISBN information\n• Retrieve format information\n• Retrieve delivery estimates\n\nAlways use this tool before:\n\n• Creating an order\n• Updating an order quantity\n• Creating a replacement order\n• Calculating total price\n\nReturn and use:\n\n• Book Name\n• Author\n• Stock Quantity\n• Delivery Time\n• Price (USD)\n• Genre\n• Format\n• ISBN\n\nNever invent book information if inventory data is unavailable.\n\nIf multiple books are returned:\n\nDisplay a short list including:\n\nTitle\nAuthor\nPrice\nStock\nDelivery Time\n\nand ask the customer which book they would like more information about.\n\n",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2071244140,
+          "mode": "list",
+          "cachedResultName": "Inventory"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        240
+      ],
+      "id": "8c40b133-73d8-442d-ad9e-2b020b61269e",
+      "name": "inventory_search",
+      "notes": "Searches the bookstore inventory for title, author, genre, ISBN, format, price, available stock and delivery estimate. Use it to ground book recommendations and verify stock before order changes.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update the inventory record for a book in the Inventory Google Sheet.\n\nUse this tool only after the required calculations have already been completed.\n\nThis tool updates the Stock Quantity for an existing book.\n\nAlways identify the book using Book Name.\n\nBusiness Rules\n\nNew Order\n- Current Stock Quantity = Inventory stock before the order.\n- New Stock Quantity = Current Stock Quantity − Quantity Ordered.\n- Update the inventory with the new Stock Quantity.\n\nCancelled Order\n- Current Stock Quantity = Inventory stock after the order.\n- New Stock Quantity = Current Stock Quantity + Quantity Ordered.\n- Update the inventory with the new Stock Quantity.\n\nQuantity Increased\n- Calculate the difference between the old quantity and the new quantity.\n- Reduce inventory only by the additional quantity ordered.\n\nExample:\nOld Quantity = 2\nNew Quantity = 5\nDifference = 3\n\nNew Stock Quantity = Current Stock Quantity − 3\n\nQuantity Reduced\n- Calculate the difference between the old quantity and the new quantity.\n- Return the unused books to inventory.\n\nExample:\nOld Quantity = 5\nNew Quantity = 2\nDifference = 3\n\nNew Stock Quantity = Current Stock Quantity + 3\n\nRequired Inputs\n\n- Book Name\n- New Stock Quantity\n\nNever update any other inventory fields.\n\nNever invent stock values.\n\nAlways use the current inventory record and the order information to calculate the new Stock Quantity before calling this tool.\n",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2071244140,
+          "mode": "list",
+          "cachedResultName": "Inventory"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Book Name": "={{ $fromAI('Book_Name__using_to_match_', ``, 'string') }}",
+            "Stock Quantity": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Stock_Quantity', `New stock quantity after order processing.`, 'string') }}"
+          },
+          "matchingColumns": [
+            "Book Name"
+          ],
+          "schema": [
+            {
+              "id": "Book Name",
+              "displayName": "Book Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Author",
+              "displayName": "Author",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Stock Quantity",
+              "displayName": "Stock Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Delivery Time",
+              "displayName": "Delivery Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Price (USD)",
+              "displayName": "Price (USD)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Genre",
+              "displayName": "Genre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Format",
+              "displayName": "Format",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ISBN",
+              "displayName": "ISBN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        600,
+        240
+      ],
+      "id": "8968b108-a7c2-481d-9dc2-362f45f564b6",
+      "name": "inventory_update",
+      "notes": "Updates the stock quantity for a book in the Inventory sheet. The agent must first retrieve the current quantity and calculate the correct new quantity; verify the order/cancellation operation before changing stock.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Creates a new customer order in the Orders Google Sheet.\n\nUse this tool only after:\n\n1. The requested book has been found in inventory.\n2. Stock availability has been verified.\n3. The customer has confirmed:\n   - Book\n   - Quantity\n   - Customer Name\n   - Customer Email\n   - Delivery Address\n   - Total Price\n\nCreate a new order containing:\n\n- Order ID\n- Book Name\n- Quantity Ordered\n- Customer Name\n- Customer Email\n- Order Date\n- Order Status (Default: Pending)\n- Total Price (USD)\n- Delivery Address\n\nAfter this tool succeeds:\n\n1. Immediately use the update_inventory tool to reduce the stock quantity for the ordered book.\n2. Then use the send_email tool to send an order confirmation.\n3. Only after both tools succeed should you tell the customer the order has been placed successfully.\n\nDo not use this tool for:\n\n- Updating an existing order\n- Cancelling an order\n- Reactivating a cancelled order\n- Creating duplicate orders without customer confirmation\n\nNever invent customer information, prices, stock quantities or Order IDs.\nAlways use data retrieved from the connected tools.\n\n",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Delivery Address": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Delivery_Address', ``, 'string') }}",
+            "Total Price (USD)": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Total_Price__USD_', ``, 'string') }}",
+            "Order Status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Order_Status', ``, 'string') }}",
+            "Order Date": "={{ $now.toFormat('dd LLL yyyy, HH:mm') }}\n\n",
+            "Customer Email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Customer_Email', ``, 'string') }}",
+            "Customer Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Customer_Name', ``, 'string') }}",
+            "Quantity Order": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Quantity_Order', ``, 'string') }}",
+            "Book Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Book_Name', ``, 'string') }}",
+            "Order ID": "=ORD{{ $now.toMillis() }}",
+            "ETA": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('ETA', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Order ID",
+              "displayName": "Order ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Book Name",
+              "displayName": "Book Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Quantity Order",
+              "displayName": "Quantity Order",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Email",
+              "displayName": "Customer Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Date",
+              "displayName": "Order Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Status",
+              "displayName": "Order Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Unit Price (USD)",
+              "displayName": "Unit Price (USD)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total Price (USD)",
+              "displayName": "Total Price (USD)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Delivery Address",
+              "displayName": "Delivery Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ETA",
+              "displayName": "ETA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1020,
+        240
+      ],
+      "id": "b5412f22-b9f4-45bd-a19b-0b38ae103214",
+      "name": "order_create",
+      "notes": "Adds a new customer order to the Orders sheet after book availability, customer details, order summary and customer confirmation have been checked.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Search the Orders Google Sheet.\n\nUse this tool whenever order information is required.\n\nAlways use this tool before:\n\n- Tracking an order\n- Updating an order\n- Cancelling an order\n- Creating a replacement order\n- Sending an order update email\n\nSearch using the Order ID whenever it is available.\n\nIf an Order ID is not provided, search using the customer's email address.\n\nReturn the complete order record, including:\n\n- Order ID\n- Book Name\n- Quantity Ordered\n- Customer Name\n- Customer Email\n- Order Date\n- Order Status\n- Unit Price (USD)\n- Total Price (USD)\n- Delivery Address\n- Delivery Estimate\n\nOrder Status may be one of:\n\n- Pending\n- Processing\n- Shipped\n- Delivered\n- Cancelled\n\nBusiness Rules\n\nIf Order Status = Pending\n• Address may be changed.\n• Quantity may be changed (subject to stock availability).\n• Order may be cancelled.\n\nIf Order Status = Processing\n• Address may be changed.\n• Quantity may be changed (subject to stock availability).\n• Order may be cancelled.\n\nIf Order Status = Shipped\n• No modifications are allowed.\n• No cancellation is allowed.\n• Only tracking information may be provided.\n\nIf Order Status = Delivered\n• No modifications are allowed.\n• No cancellation is allowed.\n• Inform the customer that the order has already been delivered.\n\nIf Order Status = Cancelled\n• Do not allow any modifications.\n• Do not reactivate the order.\n• Offer to create a replacement order instead.\n• Before creating the replacement order, ask the customer to confirm or update:\n  - Customer Name\n  - Customer Email\n  - Delivery Address\n\nNever invent order information.\n\nAlways retrieve the latest information from the Orders sheet before responding.\n",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Order ID",
+              "lookupValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        740,
+        240
+      ],
+      "id": "1305baf4-4c62-4078-a0bf-b62da357efd9",
+      "name": "order_search",
+      "notes": "Looks up an existing order, preferably by Order ID, for tracking, eligibility checks, updates, cancellations and replacement-order preparation.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update an existing order in the Orders Google Sheet.\n\nUse this tool ONLY after search_orders has retrieved the order and confirmed that the requested update is allowed.\n\nThis tool updates an existing order record.\n\nPossible updates include:\n\n• Quantity Ordered\n• Delivery Address\n• Customer Name\n• Customer Email\n• Order Status\n• Unit Price (USD)\n• Total Price (USD)\n• Delivery Estimate\n\nNever use this tool without first retrieving the latest order information.\n\nBusiness Rules\n\nPending Orders\n• May update quantity.\n• May update delivery address.\n• May update customer name.\n• May update customer email.\n• May be cancelled.\n\nProcessing Orders\n• May update quantity.\n• May update delivery address.\n• May update customer name.\n• May update customer email.\n• May be cancelled.\n\nShipped Orders\n• Do not update.\n• Inform the customer the order has already shipped.\n\nDelivered Orders\n• Do not update.\n• Inform the customer the order has already been delivered.\n\nCancelled Orders\n• Never update.\n• Never reactivate.\n• Offer to create a replacement order instead.\n\nIf quantity changes:\n\n1. Search inventory.\n2. Calculate the stock difference.\n3. Update inventory.\n4. Calculate the new Total Price.\n\nNew Total Price =\nUnit Price × Quantity Ordered\n\nIf cancelling:\n\n1. Update Order Status to Cancelled.\n2. Restore inventory.\n3. Send cancellation email.\n4. Confirm cancellation only after all tools succeed.\n\nAlways update only the requested fields.\n\nDo not overwrite fields that the customer did not ask to change.\n\nNever invent prices, quantities, delivery estimates or customer information.\nAlways use information retrieved from the connected tools.\n",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PRIMARY_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Delivery Address": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Delivery_Address', ``, 'string') }}",
+            "Total Price (USD)": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Total_Price__USD_', ``, 'string') }}",
+            "Order Status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Order_Status', ``, 'string') }}",
+            "Order Date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Order_Date', ``, 'string') }}",
+            "Customer Email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Customer_Email', ``, 'string') }}",
+            "Customer Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Customer_Name', ``, 'string') }}",
+            "Quantity Order": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Quantity_Order', ``, 'string') }}",
+            "Book Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Book_Name', ``, 'string') }}",
+            "Order ID": "={{ $fromAI('Order_ID__using_to_match_', ``, 'string') }}",
+            "ETA": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('ETA', ``, 'string') }}",
+            "Unit Price (USD)": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Unit_Price__USD_', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "Order ID"
+          ],
+          "schema": [
+            {
+              "id": "Order ID",
+              "displayName": "Order ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Book Name",
+              "displayName": "Book Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Quantity Order",
+              "displayName": "Quantity Order",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Email",
+              "displayName": "Customer Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Date",
+              "displayName": "Order Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Status",
+              "displayName": "Order Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Unit Price (USD)",
+              "displayName": "Unit Price (USD)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total Price (USD)",
+              "displayName": "Total Price (USD)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Delivery Address",
+              "displayName": "Delivery Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ETA",
+              "displayName": "ETA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        900,
+        240
+      ],
+      "id": "05d94835-2f38-4763-994b-9074a6f9d456",
+      "name": "order_update",
+      "notes": "Updates an existing order record. The agent instructions restrict customer-requested edits to Pending or Processing orders and permit quantity or delivery-address changes. Verify inventory impact when quantity changes.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to send order confirmations,\ninvoices, cancellation confirmations,\nand order status updates to customers.\n\nOnly send emails when the customer has\nprovided a valid email address.\n",
+        "sendTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('To', ``, 'string') }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        2280,
+        240
+      ],
+      "id": "96dba3dd-feb0-4d34-8919-1b9ad99e1786",
+      "name": "emai_send",
+      "notes": "Sends customer order-related email messages through Gmail. Requires a valid customer email and a connected Gmail credential. The agent must only report success after the email tool succeeds.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1160,
+        320
+      ],
+      "id": "eb7dc3b1-5d56-4f52-ac93-063216d339f7",
+      "name": "orderItem_create",
+      "notes": "Google Sheets append node intended to create an order-item/cart line. It is currently not connected to the agent and its worksheet reference is blank; configure the correct spreadsheet tab and connect it before use.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1900,
+        360
+      ],
+      "id": "603edfb1-3ae2-498c-bd81-ab252196bfcd",
+      "name": "cart_search",
+      "notes": "Searches the cart/order-item sheet for existing cart lines. Connected as an AI tool, but its worksheet reference is blank in this export; select the correct tab before using it.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        2020,
+        360
+      ],
+      "id": "b2416b6f-dccc-4297-9c5d-03536ad268f3",
+      "name": "cart_add",
+      "notes": "Adds a book line to a customer's cart. Connected as an AI tool, but its worksheet reference is blank in this export; select the correct tab and verify the expected columns before using it.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        2160,
+        380
+      ],
+      "id": "5103503d-8e8e-4715-9678-d34df4eafa1d",
+      "name": "cart_update",
+      "notes": "Updates an existing cart line, such as its quantity. Connected as an AI tool, but its worksheet reference is blank in this export; select the correct tab and verify row matching before using it.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1678808923,
+          "mode": "list",
+          "cachedResultName": "Customers"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1360,
+        300
+      ],
+      "id": "e771f516-1c5e-4219-ac22-9cf062ee6c1c",
+      "name": "customer_search",
+      "notes": "Searches the Customers sheet for an existing customer record, supporting customer recognition and retrieval of stored contact details.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1678808923,
+          "mode": "list",
+          "cachedResultName": "Customers"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1480,
+        280
+      ],
+      "id": "fc8ecf6a-c34f-4f8c-91e6-a0d2b47e5a74",
+      "name": "customer_create",
+      "notes": "Creates a customer record in the Customers sheet when a new customer needs to be recorded. Confirm required fields and avoid creating duplicate customer records.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1678808923,
+          "mode": "list",
+          "cachedResultName": "Customers"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1620,
+        300
+      ],
+      "id": "b3cb54b9-422a-4f7e-a4b2-27c5471a71cf",
+      "name": "customer_update",
+      "notes": "Updates an existing customer record in the Customers sheet. Confirm the customer match and fields to change before writing.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_EXTENDED_BOOKSTORE_SHEETS_DOCUMENT_ID",
+          "mode": "id",
+          "cachedResultName": "Updated version Whatsapp Sales Assistant"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 786638849,
+          "mode": "list",
+          "cachedResultName": "Sales"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        240
+      ],
+      "id": "32b180b2-0e34-41af-8e66-8624e16ec91a",
+      "name": "sale_record",
+      "notes": "Records a completed sale in the Sales sheet. Confirm the order has actually completed before recording the sale to avoid duplicate or premature sales entries.",
+      "notesInFlow": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp Business Cloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all orders": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Order": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cancle Order": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "inventory_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "inventory_update": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "order_create": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "order_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "order_update": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "emai_send": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cart_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cart_add": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "customer_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "customer_create": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "customer_update": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sale_record": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cart_update": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
