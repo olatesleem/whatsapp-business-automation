@@ -338,7 +338,7 @@
         240
       ],
       "id": "8c40b133-73d8-442d-ad9e-2b020b61269e",
-      "name": "inventory_search",
+      "name": "search_inventory",
       "notes": "Searches the bookstore inventory for title, author, genre, ISBN, format, price, available stock and delivery estimate. Use it to ground book recommendations and verify stock before order changes.",
       "notesInFlow": true
     },
@@ -472,7 +472,7 @@
         240
       ],
       "id": "8968b108-a7c2-481d-9dc2-362f45f564b6",
-      "name": "inventory_update",
+      "name": "update_inventory",
       "notes": "Updates the stock quantity for a book in the Inventory sheet. The agent must first retrieve the current quantity and calculate the correct new quantity; verify the order/cancellation operation before changing stock.",
       "notesInFlow": true
     },
@@ -623,7 +623,7 @@
         240
       ],
       "id": "b5412f22-b9f4-45bd-a19b-0b38ae103214",
-      "name": "order_create",
+      "name": "create_order",
       "notes": "Adds a new customer order to the Orders sheet after book availability, customer details, order summary and customer confirmation have been checked.",
       "notesInFlow": true
     },
@@ -660,7 +660,7 @@
         240
       ],
       "id": "1305baf4-4c62-4078-a0bf-b62da357efd9",
-      "name": "order_search",
+      "name": "search_orders",
       "notes": "Looks up an existing order, preferably by Order ID, for tracking, eligibility checks, updates, cancellations and replacement-order preparation.",
       "notesInFlow": true
     },
@@ -846,7 +846,7 @@
         240
       ],
       "id": "96dba3dd-feb0-4d34-8919-1b9ad99e1786",
-      "name": "emai_send",
+      "name": "send_email",
       "notes": "Sends customer order-related email messages through Gmail. Requires a valid customer email and a connected Gmail credential. The agent must only report success after the email tool succeeds.",
       "notesInFlow": true
     },
@@ -1138,7 +1138,7 @@
         ]
       ]
     },
-    "inventory_search": {
+    "search_inventory": {
       "ai_tool": [
         [
           {
@@ -1149,7 +1149,7 @@
         ]
       ]
     },
-    "inventory_update": {
+    "update_inventory": {
       "ai_tool": [
         [
           {
@@ -1160,7 +1160,7 @@
         ]
       ]
     },
-    "order_create": {
+    "create_order": {
       "ai_tool": [
         [
           {
@@ -1171,7 +1171,7 @@
         ]
       ]
     },
-    "order_search": {
+    "search_orders": {
       "ai_tool": [
         [
           {
@@ -1193,7 +1193,7 @@
         ]
       ]
     },
-    "emai_send": {
+    "send_email": {
       "ai_tool": [
         [
           {
