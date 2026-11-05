@@ -1,42 +1,46 @@
-# WhatsApp Business Automated Response Workflow
+# BookBot — WhatsApp Bookstore Sales Assistant
 
-A practical business automation project designed to improve how a household-utensils business responds to incoming WhatsApp customer enquiries.
+An AI-powered WhatsApp bookstore assistant built with **n8n**, **OpenAI**, **WhatsApp Business Cloud**, **Google Sheets**, and **Gmail**.
 
-The project uses **n8n workflow automation** and WhatsApp integration concepts to reduce repetitive first-response work and help customers understand what they can ask about.
+BookBot is designed to help customers discover books, check availability and pricing, place orders, track existing orders, update eligible orders, cancel orders, and request replacement orders.
 
-> **Project status:** Portfolio documentation is being organised. This repository currently documents the confirmed use case and intended workflow. A verified, sanitised n8n export and implementation-specific setup details will be added after the original workflow configuration is recovered and checked.
+> **Portfolio status:** This repository contains a sanitised workflow export and implementation documentation. The workflow has been structurally checked, but it has **not** been imported into a clean n8n instance or execution-tested. Credentials and account-specific spreadsheet references must be reconnected before use.
 
-## The problem
+## What BookBot is designed to do
 
-Small businesses often receive repeated enquiries through WhatsApp. Responding manually to every new conversation can take time and make it harder to provide a consistent first response.
+- Search bookstore inventory by title, author, genre, ISBN, format and availability.
+- Return book information using connected inventory data rather than inventing prices or stock levels.
+- Collect customer and delivery details, show an order summary and request confirmation before creating an order.
+- Create orders and update inventory quantities.
+- Retrieve orders for tracking and eligibility checks.
+- Restrict customer-requested order edits and cancellations to eligible order statuses, as described in the AI Agent instructions.
+- Send order-related emails through Gmail after the relevant operation succeeds.
+- Support replacement orders rather than silently reactivating cancelled orders.
 
-## The solution
+## Architecture
 
-The workflow is designed to respond when a customer sends an incoming WhatsApp message. It sends a welcome message that introduces the business and its products, then invites the customer to ask about:
-- Products
-- Prices
-- Product availability
-- Delivery
+```text
+Customer on WhatsApp
+        |
+        v
+WhatsApp Trigger
+        |
+        v
+     AI Agent <---- OpenAI Chat Model
+        |    <---- Simple Memory
+        |
+        +---- Inventory search / inventory update
+        +---- Order create / order search / order update
+        +---- Customer search / create / update
+        +---- Cart search / add / update
+        +---- Sales record
+        +---- Gmail email tool
+        |
+        v
+WhatsApp Business Cloud reply
+```
 
-This gives customers a clear starting point for the conversation while reducing the need to manually send the same introductory response.
-
-## Workflow at a glance
-
-1. A customer sends a message to the business on WhatsApp.
-2. The incoming message initiates the automation.
-3. The workflow processes the incoming event.
-4. The customer receives an automated welcome message with guidance on the enquiries they can make.
-
-The exact WhatsApp provider, n8n node configuration, message conditions, and response-handling behaviour are not documented here until they can be verified against the original workflow.
-
-## Technology and concepts
-
-- **n8n** — workflow automation and orchestration
-- **WhatsApp Business integration** — customer messaging channel
-- **Webhooks and APIs** — integration concepts used in the project
-- **JSON** — workflow configuration and structured data
-
-Specific provider names and node-level implementation details will be listed once verified.
+Google Sheets is the operational data layer for inventory, orders, customer records, cart lines and sales. Gmail is used for customer email communication.
 
 ## Repository structure
 
@@ -44,31 +48,68 @@ Specific provider names and node-level implementation details will be listed onc
 whatsapp-business-automation/
 ├── README.md
 ├── workflow/
-│   └── README.md
-├── docs/
-│   ├── architecture.md
-│   ├── workflow-explanation.md
-│   └── setup-guide.md
-├── screenshots/
-│   └── .gitkeep
-└── .gitignore
+│   └── bookbot-whatsapp-store-assistant.json
+└── docs/
+    ├── architecture.md
+    └── workflow-review.md
 ```
 
-## Security
+## Workflow export
 
-- Never commit WhatsApp access tokens, API keys, passwords, webhook secrets, or private customer data.
-- Replace credentials and account-specific identifiers with placeholders before sharing workflow exports.
-- Review execution logs and screenshots to ensure customer phone numbers and message contents are not exposed.
+The sanitised n8n export is available at [workflow/bookbot-whatsapp-store-assistant.json](workflow/bookbot-whatsapp-store-assistant.json).
 
-## Current limitations
+The export has been cleaned for portfolio sharing:
+- Removed all **14 disabled nodes**.
+- Removed credential bindings and webhook IDs.
+- Replaced private Google Sheets document IDs and the WhatsApp phone-number ID with placeholders.
+- Removed instance-specific export metadata.
+- Added visible node notes to explain each node's role and highlight incomplete configuration.
+- Kept the workflow inactive (`active: false`).
 
-This repository does not yet contain a verified n8n workflow export. The technical implementation should not be inferred from the high-level project description. Provider-specific setup instructions and claims about testing will be added only after the original configuration is checked.
+## Setup before importing or activating
 
-## About the developer
+1. Import the JSON into your n8n instance.
+2. Reconnect your own OpenAI, WhatsApp Business Cloud, Google Sheets and Gmail credentials.
+3. Replace the two Google Sheets document ID placeholders with the correct spreadsheet IDs.
+4. Configure the blank worksheet references on `cart_search`, `cart_add` and `cart_update`. The `orderItem_create` node is also disconnected and has a blank worksheet reference.
+5. Review the legacy connected tools `Get all orders`, `Delete Order` and `cancle Order`. In particular, `Delete Order` is destructive and should not be exposed to the AI agent unless there is a clear, protected business requirement.
+6. Verify spreadsheet column names and matching fields for every Google Sheets operation.
+7. Configure and verify the WhatsApp webhook and recipient mapping.
+8. Test in a disposable environment with test data before connecting real customers or activating the workflow.
+
+## Known implementation gaps
+
+- Three connected cart tools have blank worksheet references.
+- `orderItem_create` is not connected to the AI Agent and has a blank worksheet reference.
+- Three additional legacy order tools remain connected to the AI Agent; their overlap with the primary order tools should be reviewed.
+- The AI Agent instructions describe business rules, but those rules have not been validated through end-to-end execution.
+
+These gaps are documented rather than silently repaired because the correct spreadsheet tabs, data schema and business rules cannot be inferred safely from the JSON alone.
+
+## Validation
+
+| Check | Result |
+|---|---|
+| JSON parsing | Passed |
+| Disabled-node removal | 14 removed |
+| Structural workflow check | Passed |
+| Runtime/import test | Not performed |
+| Live WhatsApp, Google Sheets and Gmail operations | Not tested |
+
+A structural check does not prove that node versions, expressions, spreadsheet schemas, credentials or business logic will work in a live n8n instance.
+
+## Technology stack
+
+- **n8n** — workflow orchestration and tool routing
+- **OpenAI** — AI agent language model
+- **WhatsApp Business Cloud** — customer messaging interface
+- **Google Sheets** — inventory, orders, customer, cart and sales data
+- **Gmail** — customer email notifications
+- **JSON, APIs and webhooks** — integration and workflow configuration
+
+## About
 
 **Ola Tesleem**  
 AI Automation Specialist | n8n Workflow Developer | AI Agents & Business Process Automation
 
-Interested in building practical automation systems that connect business tools, reduce repetitive work, and improve customer operations.
-
-- GitHub: [@Olatesleem](https://github.com/Olatesleem)
+GitHub: [@olatesleem](https://github.com/olatesleem)
